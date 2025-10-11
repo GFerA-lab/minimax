@@ -1,6 +1,8 @@
 from collections import deque
 
+# Funcion para solicitar y validar datos
 def solicitar_dato(mensaje, tipo_dato, validacion=None):
+
     while True:
         try:
             dato = tipo_dato(input(mensaje))
@@ -14,12 +16,13 @@ def solicitar_dato(mensaje, tipo_dato, validacion=None):
         except ValueError:
             print("Entrada inválida.")
 
+# Clase Mapa
 class Mapa:
     def __init__(self, ancho, alto, lista_obstaculos):
         self.ancho = ancho
         self.alto = alto
         self.mapa = [[0 for _ in range(ancho)] for _ in range(alto)]
-        self.posicion_obstaculo = {}
+        self.posicion_obstaculo = {} # Diccionario para rastrear posiciones de obstaculos
         self.lista_obstaculos = lista_obstaculos # Tipos de obstaculos
 
     def mostrar_mapa_normal(self):
@@ -28,14 +31,12 @@ class Mapa:
             1: "🏢",   # edificio
             2: "💧",   # agua
             3: "⛔",   # zona bloqueada
-            8: "🚩",   # inicio
-            9: "🏁"    # fin
         }
 
         for fila in self.mapa:
             print("".join(valor_emoji[celda] for celda in fila))
     
-    def mostrar_mapa_camino(self, camino_normal, camino_imprevistos):
+    def mostrar_mapa_camino(self, camino_normal, camino_imprevistos, inicio=None, fin=None):
         valor_camino = 5 
         valor_camino_imprevisto = 6
 
@@ -47,13 +48,23 @@ class Mapa:
 
         for i, fila in enumerate(self.mapa):
             fila_str = ""
+
             for j, celda in enumerate(fila):
-                if (i, j) in camino_nomal_set:
+                if (i, j) == inicio:
+                    fila_str += valor_emoji[8]
+
+                elif (i, j) == fin:
+                    fila_str += valor_emoji[9]
+
+                elif (i, j) in camino_nomal_set:
                     fila_str += valor_emoji[valor_camino]
+
                 elif (i, j) in camino_imprevisto_set:
                     fila_str += valor_emoji[valor_camino_imprevisto]
+                
                 else:
                     fila_str += valor_emoji[celda]
+
             print(fila_str)
 
     def agregar_obstaculo(self, posicion, tipo_obs, forma, camino_viable):
@@ -91,6 +102,7 @@ class Mapa:
     def verificar_posicion(self, posicion, camino_viable):
         fila, colm = posicion
 
+        # verifica posicion dentro del rango y si es un camino viable
         if 0 <= fila < self.alto and 0 <= colm < self.ancho and self.mapa[fila][colm] in camino_viable:
             return True
     
@@ -108,10 +120,16 @@ class Mapa:
             else:
                 print("Posición inválida.")
     
+    # Funciones para cambiar por caminos a las zonas bloqueadas
     def liberar_zona(self, tipo_obs):
         posiciones_a_eliminar = []
+        posiciones = self.posicion_obstaculo.get(tipo_obs, [])
 
-        for fila, colm in self.posicion_obstaculo.get(tipo_obs, []):
+        if not posiciones:
+            print("No hay zonas bloqueadas para liberar.")
+            return
+
+        for fila, colm in posiciones:
 
             if self.mapa[fila][colm] == tipo_obs:
                 self.mapa[fila][colm] = 0
@@ -123,10 +141,16 @@ class Mapa:
             for pos in posiciones_a_eliminar:
                 self.posicion_obstaculo[tipo_obs].remove(pos)
     
+    # Funcion para volver a bloquear las zonas bloqueadas
     def bloquear_zonas(self, tipo_obs):
         posiciones_a_eliminar = []
+        posiciones = self.posicion_obstaculo.get(tipo_obs, [])
 
-        for fila, colm in self.posicion_obstaculo.get(tipo_obs, []):
+        if not posiciones:
+            print("\nNo hay posiciones registradas para este tipo de obstáculo.")
+            return
+
+        for fila, colm in posiciones:
 
             if self.mapa[fila][colm] == 0:
                 self.mapa[fila][colm] = tipo_obs
@@ -137,7 +161,8 @@ class Mapa:
         if posiciones_a_eliminar:
             for pos in posiciones_a_eliminar:
                 self.posicion_obstaculo[tipo_obs].remove(pos)
-    
+
+# Clase para buscar caminos
 class BuscarCamino():
     def __init__(self, instancia_mapa, direcciones, inicio=None, fin=None):
         self.instancia_mapa = instancia_mapa
@@ -199,17 +224,17 @@ class BuscarCamino():
         
         elif camino1 == camino2 and camino1 is not None:
             print("No se encontro ningun camino mas eficiente que el normal.")
-            self.instancia_mapa.mostrar_mapa_camino(camino1, [])
+            self.instancia_mapa.mostrar_mapa_camino(camino1, [], self.inicio, self.fin)
             return
         
         if camino1 is None and camino2 is not None:
             print("No se encontro ningun camino sin imprevistos, se muestra el camino con imprevistos.")
-            self.instancia_mapa.mostrar_mapa_camino([], camino2)
+            self.instancia_mapa.mostrar_mapa_camino([], camino2, self.inicio, self.fin)
             return
         
         else:
             print("Se encontraron ambos caminos, se muestran ambos caminos.")
-            self.instancia_mapa.mostrar_mapa_camino(camino1, camino2)
+            self.instancia_mapa.mostrar_mapa_camino(camino1, camino2, self.inicio, self.fin)
         
     def actualizar_mapa(self, instancia_mapa):
         self.instancia_mapa = instancia_mapa
@@ -218,10 +243,10 @@ def main():
     # Recorrer en cruz
     forma_cruz = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
-    # Recorer en cuadrado
+    # Recorrer en cuadrado
     forma_cuadrado = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
-    bandera_camino = False
+    bandera_camino = False # Indica si ya se ha buscado un camino
 
     terreno_normal = [0] #Camino viable
     terreno_imprevistos = [0, 2] #Camino con imprevistos
@@ -229,30 +254,33 @@ def main():
 
     ancho = solicitar_dato("Ingrese el ancho del mapa: ", int, lambda x: x > 0)
     alto = solicitar_dato("Ingrese el alto del mapa: ", int, lambda x: x > 0)
-    mapa = Mapa(ancho, alto, lista_obstaculos)
+    mapa = Mapa(ancho, alto, lista_obstaculos) # Crear instancia del mapa
     mapa.mostrar_mapa_normal()
 
+    # Ciclo principal del programa
     while True:
         print("--- Menú ---")
         print("1. Editar mapa")
         print("2. Buscar camino")
-        print("3. Salir")
+        print("3. Salir\n")
 
         opcion = solicitar_dato("Seleccione una opción: ", int, lambda x: 1 <= x <= 4)
 
         if opcion == 1:
+            # Submenú para editar el mapa
             while True:
-                print("--- Editar mapa ---")
+                print("\n--- Editar mapa ---")
                 print("1. Agregar edificio (cuadrado)")
                 print("2. Agregar agua (cruz)")
                 print("3. Agregar zona bloqueada (cuadrado)")  
                 print("4. Liberar zona bloqueada")
                 print("5. Bloquear zonas bloqueadas")
                 print("6. Limpiar zona")
-                print("7. Volver al menú principal")
+                print("7. Volver al menú principal\n")
 
                 opcion_obstaculo = solicitar_dato("Seleccione una opción: ", int, lambda x: 1 <= x <= 7)
 
+                # Agregar obstaculos
                 if opcion_obstaculo in [1, 2, 3]:
 
                     posicion_obstaculo = mapa.solicitar_posicion(terreno_normal)
@@ -275,43 +303,48 @@ def main():
                     mapa.agregar_obstaculo(posicion_obstaculo, tipo_obs, forma, camino_viable)
 
                     if bandera_camino:
-                        buscador.actualizar_mapa(mapa)
+                        #buscador.actualizar_mapa(mapa)
                         buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
                     else:
                         mapa.mostrar_mapa_normal()
                 
+                # Liberar zona bloqueada
                 elif opcion_obstaculo == 4:
                     tipo_obs = 3
                     mapa.liberar_zona(tipo_obs)
                     if bandera_camino:
-                        buscador.actualizar_mapa(mapa)
+                        #buscador.actualizar_mapa(mapa)
                         buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
                     else:
                         mapa.mostrar_mapa_normal()
                 
+                # Bloquear zonas bloqueadas
                 elif opcion_obstaculo == 5:
                     tipo_obs = 3
                     mapa.bloquear_zonas(tipo_obs)
                     if bandera_camino:
-                        buscador.actualizar_mapa(mapa)
+                        #buscador.actualizar_mapa(mapa)
                         buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
                     else:
                         mapa.mostrar_mapa_normal()
                 
+                # Limpiar zona
                 elif opcion_obstaculo == 6:
 
                     posicion_limpiar = mapa.solicitar_posicion(lista_obstaculos)
                     mapa.limpiar_zona(posicion_limpiar, forma_cuadrado)
 
                     if bandera_camino:
-                        buscador.actualizar_mapa(mapa)
+                        #buscador.actualizar_mapa(mapa)
                         buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
                     else:
                         mapa.mostrar_mapa_normal()
 
+                # Volver al menú principal
                 elif opcion_obstaculo == 7:
                     break
-
+        
+        # Buscar camino
         elif opcion == 2:
             
             print("Ingrese las posiciones de inicio y fin para buscar el camino.")
@@ -323,7 +356,7 @@ def main():
             posicion_fin = mapa.solicitar_posicion(terreno_normal)
 
             if bandera_camino == False:
-                buscador = BuscarCamino(mapa, forma_cruz, posicion_inicio, posicion_fin)
+                buscador = BuscarCamino(mapa, forma_cruz, posicion_inicio, posicion_fin) # Crear instancia del buscador de caminos
                 bandera_camino = True
             else:
                 buscador.agregar_inicio(posicion_inicio)
@@ -332,7 +365,7 @@ def main():
             buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
         
         elif opcion == 3:
-            print("Saliendo del programa.")
+            print("\nSaliendo del programa.")
             break
 
 if __name__ == "__main__":
