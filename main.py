@@ -1,377 +1,253 @@
-from collections import deque
+import copy
 
-# Funcion para solicitar y validar datos
-def solicitar_dato(mensaje, tipo_dato, validacion=None):
+def buscar_objetivo(laberinto, x, y, x_obejtivo, y_objetivo, solucion, contador):
 
-    while True:
-        try:
-            dato = tipo_dato(input(mensaje))
+    #Verificar si encontramos al objetivo
+    if x == x_obejtivo and y == y_objetivo:
+        solucion[x][y] = 1
+        contador += 1
+        return True, contador
 
-            if validacion is None or validacion(dato):
-                return dato
+    # Verificar si la posicion es valida
+    if 0 <= x < len(laberinto) and 0 <= y < len(laberinto[0]) and laberinto[x][y] == 0 and solucion[x][y] == 0:
+        solucion[x][y] = 1
+        contador += 1
+
+        # Si el objetivo se encuentra hacia la derecha ir primero hacia allí
+        if y <= y_objetivo:
+
+            # Mover hacia abajo
+            boolean, contador = buscar_objetivo(laberinto, x + 1, y, x_obejtivo, y_objetivo, solucion, contador)
+            if boolean:
+                return True, contador
+
+            # Mover hacia la derecha
+            boolean, contador = buscar_objetivo(laberinto, x, y + 1, x_obejtivo, y_objetivo, solucion, contador)
+            if boolean:
+                return True, contador
             
-            else:
-                print("El valor ingresado no cumple la condición.")
-
-        except ValueError:
-            print("Entrada inválida.")
-
-# Clase Mapa
-class Mapa:
-    def __init__(self, ancho, alto, lista_obstaculos):
-        self.ancho = ancho
-        self.alto = alto
-        self.mapa = [[0 for _ in range(ancho)] for _ in range(alto)]
-        self.posicion_obstaculo = {} # Diccionario para rastrear posiciones de obstaculos
-        self.lista_obstaculos = lista_obstaculos # Tipos de obstaculos
-
-    def mostrar_mapa_normal(self):
-        valor_emoji = {
-            0: "⬜",   # camino libre
-            1: "🏢",   # edificio
-            2: "💧",   # agua
-            3: "⛔",   # zona bloqueada
-        }
-
-        for fila in self.mapa:
-            print("".join(valor_emoji[celda] for celda in fila))
-    
-    def mostrar_mapa_camino(self, camino_normal, camino_imprevistos, inicio=None, fin=None):
-        valor_camino = 5 
-        valor_camino_imprevisto = 6
-
-        valor_emoji = {
-            0: "⬜", 1: "🏢", 2: "💧", 3: "⛔", 5: "🟩", 6: "🟨", 8: "🚩", 9: "🏁"
-        }
-        camino_nomal_set = set(camino_normal)  # Búsqueda rápida
-        camino_imprevisto_set = set(camino_imprevistos)  # Búsqueda rápida
-
-        for i, fila in enumerate(self.mapa):
-            fila_str = ""
-
-            for j, celda in enumerate(fila):
-                if (i, j) == inicio:
-                    fila_str += valor_emoji[8]
-
-                elif (i, j) == fin:
-                    fila_str += valor_emoji[9]
-
-                elif (i, j) in camino_nomal_set:
-                    fila_str += valor_emoji[valor_camino]
-
-                elif (i, j) in camino_imprevisto_set:
-                    fila_str += valor_emoji[valor_camino_imprevisto]
-                
-                else:
-                    fila_str += valor_emoji[celda]
-
-            print(fila_str)
-
-    def agregar_obstaculo(self, posicion, tipo_obs, forma, camino_viable):
-        
-        fila, colm = posicion
-
-        if tipo_obs not in self.posicion_obstaculo:
-            self.posicion_obstaculo[tipo_obs] = []
-        
-        self.mapa[fila][colm] = tipo_obs
-        self.posicion_obstaculo[tipo_obs].append(posicion)
-
-        for x, y in forma:
-            nueva_fila, nueva_colm = fila + x, colm + y # Recorrer vecinos
-            nueva_posicion = (nueva_fila, nueva_colm)
-
-            if self.verificar_posicion(nueva_posicion, camino_viable):
-                    self.mapa[nueva_fila][nueva_colm] = tipo_obs
-                    self.posicion_obstaculo[tipo_obs].append(nueva_posicion)
-    
-    def limpiar_zona(self, posicion, forma):
-        fila, colm = posicion
-        self.mapa[fila][colm] = 0
-
-        for x, y in forma:
-
-            aux_fila, aux_col = fila + x, colm + y # Recorrer vecinos
-
-            if self.verificar_posicion((aux_fila, aux_col), self.lista_obstaculos):
-                    
-                tipo_obs = self.mapa[aux_fila][aux_col]
-                self.posicion_obstaculo[tipo_obs].remove((aux_fila, aux_col))
-                self.mapa[aux_fila][aux_col] = 0
-
-    def verificar_posicion(self, posicion, camino_viable):
-        fila, colm = posicion
-
-        # verifica posicion dentro del rango y si es un camino viable
-        if 0 <= fila < self.alto and 0 <= colm < self.ancho and self.mapa[fila][colm] in camino_viable:
-            return True
-    
-        return False
-
-    def solicitar_posicion(self, camino_viable):
-        while True:
-
-            fila = solicitar_dato("Ingrese la fila: ", int)
-            colm = solicitar_dato("Ingrese la columna: ", int)
-
-            if self.verificar_posicion((fila, colm), camino_viable):
-                return (fila, colm)
+            # Mover hacia arriba
+            boolean, contador = buscar_objetivo(laberinto, x - 1, y, x_obejtivo, y_objetivo, solucion, contador)
+            if boolean:
+                return True, contador
             
-            else:
-                print("Posición inválida.")
-    
-    # Funciones para cambiar por caminos a las zonas bloqueadas
-    def liberar_zona(self, tipo_obs):
-        posiciones_a_eliminar = []
-        posiciones = self.posicion_obstaculo.get(tipo_obs, [])
+            # Mover hacia la izquierda
+            boolean, contador = buscar_objetivo(laberinto, x, y - 1, x_obejtivo, y_objetivo, solucion, contador)
+            if boolean:
+                return True, contador
 
-        if not posiciones:
-            print("No hay zonas bloqueadas para liberar.")
-            return
-
-        for fila, colm in posiciones:
-
-            if self.mapa[fila][colm] == tipo_obs:
-                self.mapa[fila][colm] = 0
-            
-            else:
-                posiciones_a_eliminar.append((fila, colm))
-
-        if posiciones_a_eliminar:
-            for pos in posiciones_a_eliminar:
-                self.posicion_obstaculo[tipo_obs].remove(pos)
-    
-    # Funcion para volver a bloquear las zonas bloqueadas
-    def bloquear_zonas(self, tipo_obs):
-        posiciones_a_eliminar = []
-        posiciones = self.posicion_obstaculo.get(tipo_obs, [])
-
-        if not posiciones:
-            print("\nNo hay posiciones registradas para este tipo de obstáculo.")
-            return
-
-        for fila, colm in posiciones:
-
-            if self.mapa[fila][colm] == 0:
-                self.mapa[fila][colm] = tipo_obs
-            
-            else:
-                posiciones_a_eliminar.append((fila, colm))
+            # Si ninguna dirección funciona, retrocede
+            solucion[x][y] = 0
+            contador -= 1
+            return False, contador
         
-        if posiciones_a_eliminar:
-            for pos in posiciones_a_eliminar:
-                self.posicion_obstaculo[tipo_obs].remove(pos)
-
-# Clase para buscar caminos
-class BuscarCamino():
-    def __init__(self, instancia_mapa, direcciones, inicio=None, fin=None):
-        self.instancia_mapa = instancia_mapa
-        self.direcciones = direcciones
-        self.camino = []
-        self.inicio = inicio
-        self.fin = fin
-
-    def buscar_bfs(self, camino_viable):
-
-        cola = deque([self.inicio])
-        visitado = set()
-        visitado.add(self.inicio)
-        padre = {self.inicio: None}
-
-        while cola:
-            actual = cola.popleft()
-            fila_actual, colm_actual = actual
-
-            if (actual) == (self.fin):
-                return self.reconstruir_camino(padre)
-
-            for x, y in self.direcciones:
-
-                vecino = (fila_actual + x, colm_actual + y)
-
-                if vecino not in visitado and self.instancia_mapa.verificar_posicion(vecino, camino_viable):
-                    visitado.add(vecino)
-                    cola.append(vecino)
-                    padre[vecino] = (actual)
-
-        return None  # No se encontró camino
-
-    def reconstruir_camino(self, padre):
-        camino = []
-        actual = self.fin
-
-        while actual is not None:
-            camino.append(actual)
-            actual = padre[actual]
-
-        camino.reverse()
-        return camino
-    
-    def agregar_inicio(self, inicio):
-        self.inicio = inicio
-
-    def agregar_fin(self, fin):
-        self.fin = fin
-
-    def buscar_caminos(self, camino_normal, camino_imprevistos):
-        camino1 = self.buscar_bfs(camino_normal)
-        camino2 = self.buscar_bfs(camino_imprevistos)
-
-        if camino1 == camino2 and camino1 is None:
-            print("No se encontró ningún camino.")
-            self.instancia_mapa.mostrar_mapa_normal()
-            return
-        
-        elif camino1 == camino2 and camino1 is not None:
-            print("No se encontro ningun camino mas eficiente que el normal.")
-            self.instancia_mapa.mostrar_mapa_camino(camino1, [], self.inicio, self.fin)
-            return
-        
-        if camino1 is None and camino2 is not None:
-            print("No se encontro ningun camino sin imprevistos, se muestra el camino con imprevistos.")
-            self.instancia_mapa.mostrar_mapa_camino([], camino2, self.inicio, self.fin)
-            return
-        
+        # Si el objetivo se encuentra hacia la izquierda ir primero hacia allí
         else:
-            print("Se encontraron ambos caminos, se muestran ambos caminos.")
-            self.instancia_mapa.mostrar_mapa_camino(camino1, camino2, self.inicio, self.fin)
-        
-    def actualizar_mapa(self, instancia_mapa):
-        self.instancia_mapa = instancia_mapa
+            
+            # Mover hacia arriba
+            boolean, contador = buscar_objetivo(laberinto, x - 1, y, x_obejtivo, y_objetivo, solucion, contador)
+            if boolean:
+                return True, contador
+            
+            # Mover hacia la izquierda
+            boolean, contador = buscar_objetivo(laberinto, x, y - 1, x_obejtivo, y_objetivo, solucion, contador)
+            if boolean:
+                return True, contador
+
+            # Mover hacia abajo
+            boolean, contador = buscar_objetivo(laberinto, x + 1, y, x_obejtivo, y_objetivo, solucion, contador)
+            if boolean:
+                return True, contador
+
+            # Mover hacia la derecha
+            boolean, contador = buscar_objetivo(laberinto, x, y + 1, x_obejtivo, y_objetivo, solucion, contador)
+            if boolean:
+                return True, contador
+
+            # Si ninguna dirección funciona, retrocede
+            solucion[x][y] = 0
+            contador -= 1
+            return False, contador
+
+    return False, contador
+
+# Verificar los movimeintos que el personaje puede hacer
+def get_valid_moves(tablero, fila, col):
+    moves = []
+    filas = len(tablero)
+    columnas = len(tablero[0])
+
+    # Verificar abajo
+    if fila + 1 < filas and tablero[fila+1][col] != 1:
+        moves.append((fila+1, col))
+
+    # Verificar arriba
+    if fila - 1 >= 0 and tablero[fila-1][col] != 1:
+        moves.append((fila-1, col))
+
+    # Verificar derecha
+    if col + 1 < columnas and tablero[fila][col+1] != 1:
+        moves.append((fila, col+1))
+
+    # Verificar izquierda
+    if col - 1 >= 0 and tablero[fila][col-1] != 1:
+        moves.append((fila, col-1))
+
+    return moves
+
+# Minimax
+def movimiento(laberinto, fila, col, pasos, gato, otro_fila, otro_col):
+    #Verificar si se llego a la profundidad deseada
+    if pasos == 0:
+        solucion = [[0 for _ in range(len(laberinto[0]))] for _ in range(len(laberinto))] # matriz para guardar camino recorrido
+        contador = 0 # Contador de pasos
+
+        # Buscar que tan lejos se encuentra el personaje de su objetivo
+        boolean, contador = buscar_objetivo(laberinto, fila, col, otro_fila, otro_col, solucion, contador)
+        return contador, None
+
+    # Gato intenta minimizar la distancia con el raton
+    if gato:
+        minEval = float('inf')
+        best_move = None
+        for move in get_valid_moves(laberinto, fila, col):
+            temp_fila, temp_col = move
+            evaluation = movimiento(laberinto, otro_fila, otro_col, pasos-1, False, temp_fila, temp_col)[0]
+            if evaluation < minEval:
+                minEval = evaluation
+                best_move = move
+        return minEval, best_move
+    
+    # Raton busca maximizar su distancia del gato
+    else:
+        maxEval = float('-inf')
+        best_move = None
+        for move in get_valid_moves(laberinto, fila, col):
+            temp_fila, temp_col = move
+            evaluation = movimiento(laberinto, otro_fila, otro_col, pasos-1, True, temp_fila, temp_col)[0]
+            if evaluation > maxEval:
+                maxEval = evaluation
+                best_move = move
+        return maxEval, best_move
+
+# Imprimir laberinto con emonjis
+def mostrar(laberinto):
+    simbolos = {0: "⬜", 1: "🟩", 2: "🐭", 3: "🐱", 4: "🚪", 5: "😿", 6:"😼"}
+
+    for i in range(len(laberinto)):
+        for j in range(len(laberinto[0])):
+            print(simbolos[laberinto[i][j]], end=" ")
+        print()
+    print()
+
+# Validar movineto ingresado
+def validar_direccion(tablero, direccion, fila_jugador, col_jugador):
+    
+    movimientos = {
+        "W": (-1, 0),  # arriba
+        "S": (1, 0),   # abajo
+        "A": (0, -1),  # izquierda
+        "D": (0, 1)    # derecha
+    }
+    
+    direccion = direccion.upper()
+
+    # Verificar letra ingresada
+    if direccion in movimientos:
+        x_aux, y_aux = movimientos[direccion]
+        # Verificar movimeintos posibles
+        moves = get_valid_moves(tablero, fila_jugador, col_jugador)
+
+        # Si el movimiento es posible retornar nueva posicion
+        if (fila_jugador + x_aux, col_jugador + y_aux) in moves:
+            return True, (fila_jugador + x_aux, col_jugador + y_aux)
+    
+    #Si la letra no es correcta o no es posible el movimiento retornar falso y la posicion original
+    return False, (fila_jugador, col_jugador)
 
 def main():
-    # Recorrer en cruz
-    forma_cruz = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    # Definir laberinto
+    laberinto = [
+        [0, 0, 0, 0, 0],
+        [1, 0, 1, 1, 0],
+        [0, 0, 0, 0, 0],
+        [0, 1, 0, 1, 0],
+        [1, 0, 0, 0, 0]
+    ]
 
-    # Recorrer en cuadrado
-    forma_cuadrado = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+    # Copia del laberinto para validaciones
+    aux_laberinto = copy.deepcopy(laberinto)
 
-    bandera_camino = False # Indica si ya se ha buscado un camino
+    # Posicion de personjes
+    raton_fila, raton_col = 0, 0
+    gato_fila, gato_columna = 3, 4
 
-    terreno_normal = [0] #Camino viable
-    terreno_imprevistos = [0, 2] #Camino con imprevistos
-    lista_obstaculos = [1, 2, 3] #Tipos de obstaculos
+    # Colocar personajes en el laberinto
+    laberinto[raton_fila][raton_col] = 2
+    laberinto[gato_fila][gato_columna] = 3
 
-    ancho = solicitar_dato("Ingrese el ancho del mapa: ", int, lambda x: x > 0)
-    alto = solicitar_dato("Ingrese el alto del mapa: ", int, lambda x: x > 0)
-    mapa = Mapa(ancho, alto, lista_obstaculos) # Crear instancia del mapa
-    mapa.mostrar_mapa_normal()
+    # Posicion Salida
+    fila_salida = 4
+    col_salida = 4
+    laberinto[fila_salida][col_salida] = 4
 
-    # Ciclo principal del programa
-    while True:
-        print("--- Menú ---")
-        print("1. Editar mapa")
-        print("2. Buscar camino")
-        print("3. Salir\n")
+    mostrar(laberinto)
 
-        opcion = solicitar_dato("Seleccione una opción: ", int, lambda x: 1 <= x <= 4)
+    while True :
 
-        if opcion == 1:
-            # Submenú para editar el mapa
-            while True:
-                print("\n--- Editar mapa ---")
-                print("1. Agregar edificio (cuadrado)")
-                print("2. Agregar agua (cruz)")
-                print("3. Agregar zona bloqueada (cuadrado)")  
-                print("4. Liberar zona bloqueada")
-                print("5. Bloquear zonas bloqueadas")
-                print("6. Limpiar zona")
-                print("7. Volver al menú principal\n")
+        direccion = input("Ingrese la direccion W/S/D/A: ")
 
-                opcion_obstaculo = solicitar_dato("Seleccione una opción: ", int, lambda x: 1 <= x <= 7)
-
-                # Agregar obstaculos
-                if opcion_obstaculo in [1, 2, 3]:
-
-                    posicion_obstaculo = mapa.solicitar_posicion(terreno_normal)
-
-                    if opcion_obstaculo == 1:
-                        tipo_obs = 1
-                        forma = forma_cuadrado
-                        camino_viable = terreno_normal
-
-                    elif opcion_obstaculo == 2:
-                        tipo_obs = 2
-                        forma = forma_cruz
-                        camino_viable = terreno_imprevistos
-
-                    else:
-                        tipo_obs = 3
-                        forma = forma_cuadrado
-                        camino_viable = terreno_normal
-
-                    mapa.agregar_obstaculo(posicion_obstaculo, tipo_obs, forma, camino_viable)
-
-                    if bandera_camino:
-                        #buscador.actualizar_mapa(mapa)
-                        buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
-                    else:
-                        mapa.mostrar_mapa_normal()
-                
-                # Liberar zona bloqueada
-                elif opcion_obstaculo == 4:
-                    tipo_obs = 3
-                    mapa.liberar_zona(tipo_obs)
-                    if bandera_camino:
-                        #buscador.actualizar_mapa(mapa)
-                        buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
-                    else:
-                        mapa.mostrar_mapa_normal()
-                
-                # Bloquear zonas bloqueadas
-                elif opcion_obstaculo == 5:
-                    tipo_obs = 3
-                    mapa.bloquear_zonas(tipo_obs)
-                    if bandera_camino:
-                        #buscador.actualizar_mapa(mapa)
-                        buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
-                    else:
-                        mapa.mostrar_mapa_normal()
-                
-                # Limpiar zona
-                elif opcion_obstaculo == 6:
-
-                    posicion_limpiar = mapa.solicitar_posicion(lista_obstaculos)
-                    mapa.limpiar_zona(posicion_limpiar, forma_cuadrado)
-
-                    if bandera_camino:
-                        #buscador.actualizar_mapa(mapa)
-                        buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
-                    else:
-                        mapa.mostrar_mapa_normal()
-
-                # Volver al menú principal
-                elif opcion_obstaculo == 7:
-                    break
-        
-        # Buscar camino
-        elif opcion == 2:
+        # Verificar que lo ingresado sea una letra y de un digito
+        if direccion.isalpha() and len(direccion) == 1:
             
-            print("Ingrese las posiciones de inicio y fin para buscar el camino.")
+            #Retorna True si se puede el movimiento y false si no
+            validacion, mov_raton = validar_direccion(aux_laberinto, direccion, raton_fila, raton_col)
 
-            print("Ingrese la posición de inicio:")
-            posicion_inicio = mapa.solicitar_posicion(terreno_normal)
-
-            print("Ingrese la posición de fin:")
-            posicion_fin = mapa.solicitar_posicion(terreno_normal)
-
-            if bandera_camino == False:
-                buscador = BuscarCamino(mapa, forma_cruz, posicion_inicio, posicion_fin) # Crear instancia del buscador de caminos
-                bandera_camino = True
+            # Si True se actualiza la posicion del raton
+            if validacion:
+                laberinto[raton_fila][raton_col] = 0
+                raton_fila, raton_col = mov_raton
+                laberinto[raton_fila][raton_col] = 2
             else:
-                buscador.agregar_inicio(posicion_inicio)
-                buscador.agregar_fin(posicion_fin)
-
-            buscador.buscar_caminos(terreno_normal, terreno_imprevistos)
+                print("NO puedes ir hacia allí")
+        else:
+            print("Ingrese una direccion valida")
         
-        elif opcion == 3:
-            print("\nSaliendo del programa.")
+        # Verificar si el gato atrapo al raton
+        if gato_fila == raton_fila and gato_columna == raton_col:
+            laberinto[raton_fila][raton_col] = 0
+            laberinto[gato_fila][gato_columna] = 6
+            print("El gato atrapo al raton")
             break
+        
+        # Verificar si el raton llego a la salida
+        if raton_fila == fila_salida and raton_col == col_salida:
+            print("El raton llego a la Salida")
+            laberinto[raton_fila][raton_col] = 4
+            laberinto[gato_fila][gato_columna] = 5
+            break
+        
+        # Encontrar movimiento para el gato
+        eval1, mov_gato = movimiento(aux_laberinto, gato_fila, gato_columna, 3, True, raton_fila, raton_col)
+
+        # Actualizar posicion del gato
+        laberinto[gato_fila][gato_columna] = 0
+        laberinto[fila_salida][col_salida] = 4 # Actualizar salida por si el gato estaba sobre ella
+        gato_fila, gato_columna = mov_gato
+        laberinto[gato_fila][gato_columna] = 3
+
+        # Verificar si el gato atrapo al raton
+        if gato_fila == raton_fila and gato_columna == raton_col:
+            laberinto[raton_fila][raton_col] = 0
+            laberinto[gato_fila][gato_columna] = 6
+            print("El gato atrapo al raton")
+            break
+        
+        # Imprimir laberinto
+        mostrar(laberinto)
+    
+    # Imprimir laberinto
+    mostrar(laberinto)
 
 if __name__ == "__main__":
-    main() 
-
-
-    
-
-    
+    main()
